@@ -1,0 +1,437 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Caça 40K">
+<meta name="theme-color" content="#000000">
+<style>:root{color-scheme:dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head><body>
+<script>
+/* Versão GitHub: lê carros.json e status.json (atualizados pela busca do Claude) e guarda favoritos no aparelho. */
+(function(){
+  var LS = "cc40k-marcas", cbs = [];
+  function load(){ try{ return JSON.parse(localStorage.getItem(LS) || "{}"); }catch(e){ return {}; } }
+  function snap(o){ return {docs: Object.keys(o).map(function(id){ return {id:id, exists:true, data:function(){ return o[id]; }}; })}; }
+  function getJSON(f){ return fetch(f + "?t=" + Date.now(), {cache:"no-store"}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); }); }
+  function poll(fn){ fn(); var t = setInterval(fn, 300000); document.addEventListener("visibilitychange", function(){ if(!document.hidden) fn(); }); return function(){ clearInterval(t); }; }
+  var db = {
+    collection: function(p){ return { onSnapshot: function(next){
+      if (p === "carros") return poll(function(){ getJSON("carros.json").then(function(a){ next({docs: a.map(function(c){ return {id:c.id, exists:true, data:function(){ return c; }}; })}); }).catch(function(){}); });
+      if (p === "marcas"){ cbs.push(next); next(snap(load())); return function(){}; }
+      next({docs:[]}); return function(){};
+    }}; },
+    doc: function(p){ return {
+      onSnapshot: function(next){
+        if (p === "status/geral") return poll(function(){ getJSON("status.json").then(function(s){ next({exists:true, data:function(){ return s; }}); }).catch(function(){}); });
+        return function(){};
+      },
+      set: function(v){ var a = p.split("/"); if (a[0] === "marcas"){ var m = load(); m[a[1]] = v; try{ localStorage.setItem(LS, JSON.stringify(m)); }catch(e){} cbs.forEach(function(f){ f(snap(m)); }); } return Promise.resolve(); },
+      get: function(){ return Promise.resolve({exists:false, data:function(){}}); }
+    }; }
+  };
+  window.claude = { use: function(n){ return Promise.resolve(n === "db" ? db : null); } };
+})();
+</script>
+<title>Caça ao Carro 40K</title>
+<style>
+/* Layout: paleta do Boonie (preto, painéis grafite, oliva) num tom mais suave: cantos arredondados, texto em caixa normal, sem relógio nem bússola. Destaque com foto grande no topo, filtros em pílulas, cartões com foto em cima e dados embaixo, barra de abas fixa no rodapé. Tema único escuro, de propósito. */
+:root{
+  --bg:#000; --panel:#0e0f0d; --panel2:#151713; --line:#252822;
+  --olive:#a9bd6a; --olive-bg:#1a2110; --ok:#8fd14f; --ok-bg:#132011;
+  --red:#e0442f; --red-ink:#ff8a78; --red-bg:#2a0f0a; --warn:#e6ad4c; --warn-bg:#2a1d08;
+  --cy:#6fd3ff; --txt:#eef0ea; --dim:#8b9283; --white:#ffffff;
+  --f:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","Segoe UI",Roboto,Arial,sans-serif;
+  --fd:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue","Segoe UI",Roboto,Arial,sans-serif;
+  --tab:60px; --r:16px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--txt);font-family:var(--f);font-size:14.5px;line-height:1.5;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:rgba(0,0,0,.82)}
+h1,h2,h3{margin:0;font-family:var(--fd);text-wrap:balance}
+button,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--olive);outline-offset:2px}
+
+#top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(0,0,0,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+#top .in{max-width:1080px;margin-inline:auto;padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;flex:1 1 auto;min-width:0}
+.brand .logo{width:14px;height:14px;border-radius:4px;background:var(--olive);transform:rotate(45deg);flex:none}
+.brand b{font-family:var(--fd);font-weight:700;font-size:17px;letter-spacing:.01em;color:var(--white)}
+.brand span{color:var(--dim);font-size:14px}
+#sync{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--dim);flex-wrap:wrap}
+#sync .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px color-mix(in srgb,var(--ok) 18%,transparent);flex:none}
+#sync .dot.warn{background:var(--warn);box-shadow:0 0 0 4px color-mix(in srgb,var(--warn) 18%,transparent)}
+#sync .dot.bad{background:var(--red);box-shadow:0 0 0 4px color-mix(in srgb,var(--red) 18%,transparent)}
+
+main{max-width:1080px;margin-inline:auto;padding-block:18px calc(var(--tab) + 32px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px;min-width:0}
+.lbl{color:var(--dim);font-size:12px}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.sec-h h1{font-size:22px;font-weight:600;color:var(--white);letter-spacing:-.01em}
+.sec-h small{color:var(--dim);font-size:13px}
+
+/* fotos */
+.ph{position:relative;aspect-ratio:16/10;max-width:100%;background:var(--panel2);overflow:hidden}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph .none{position:absolute;inset:0;display:grid;place-items:center;color:var(--dim);font-size:12.5px;text-align:center;padding:16px;background:radial-gradient(120% 90% at 50% 120%,var(--olive-bg),transparent 70%)}
+.ph .none::before{content:"";display:block;width:34px;height:22px;border:2px solid var(--line);border-radius:6px;margin:0 auto 8px}
+.ph .nav{position:absolute;inset:0;display:flex}
+.ph .nav button{flex:1;background:none;border:0;cursor:pointer}
+.ph .dots{position:absolute;left:0;right:0;bottom:10px;display:flex;justify-content:center;gap:5px;pointer-events:none}
+.ph .dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.45)}
+.ph .dots i.on{background:#fff}
+.ph .tag{position:absolute;top:10px;left:10px;display:flex;gap:6px;flex-wrap:wrap}
+.ph .score{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:12px;padding:5px 10px;text-align:center;line-height:1.05}
+.ph .score b{display:block;font-family:var(--fd);font-size:20px;font-weight:700}
+.ph .score span{font-size:10px;color:var(--dim)}
+.score.good b{color:var(--ok)} .score.mid b{color:var(--olive)} .score.low b{color:var(--warn)}
+.badge{background:rgba(0,0,0,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:var(--txt);border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:600}
+.badge.new{color:var(--cy)}
+
+/* destaque */
+#hero{background:var(--panel);border:1px solid var(--line);border-radius:22px;overflow:hidden;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+#hero .ph{aspect-ratio:auto;min-height:260px}
+#hero .t{padding:22px;display:flex;flex-direction:column;gap:12px;min-width:0}
+#hero .nm{color:var(--white);font-family:var(--fd);font-weight:600;font-size:20px;line-height:1.2}
+#hero .ver{color:var(--dim);font-size:13.5px;margin-top:2px}
+#hero .big{font-family:var(--fd);font-size:clamp(36px,6vw,48px);font-weight:700;color:var(--white);line-height:1;letter-spacing:-.02em}
+#hero .big small{font-size:.38em;color:var(--dim);font-weight:500;margin-right:4px;vertical-align:.5em;letter-spacing:0}
+.readout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:auto;padding-top:14px;border-top:1px solid var(--line)}
+.readout b{display:block;color:var(--white);font-family:var(--fd);font-size:19px;font-weight:600;line-height:1.2}
+.readout b.ok{color:var(--ok)}
+@media (max-width:720px){#hero{grid-template-columns:1fr}#hero .ph{aspect-ratio:16/10;min-height:0}}
+
+/* botões e filtros */
+.b{padding:9px 16px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:999px;font-size:13.5px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:background .15s,border-color .15s,color .15s}
+.b:hover{border-color:#3a3e35}
+.b.pri{background:var(--olive);border-color:var(--olive);color:#10140a}
+.b.pri:hover{filter:brightness(1.06)}
+.b[aria-pressed="true"]:not(.pri){background:var(--olive-bg);border-color:color-mix(in srgb,var(--olive) 55%,transparent);color:var(--olive)}
+.b.sm{padding:7px 13px;font-size:13px}
+.filters{display:flex;flex-direction:column;gap:10px}
+.frow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+select.b{appearance:none;-webkit-appearance:none;padding-right:30px;background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);background-position:calc(100% - 16px) 52%,calc(100% - 11px) 52%;background-size:5px 5px;background-repeat:no-repeat}
+
+/* cartões */
+.cars{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.card{border:1px solid var(--line);background:var(--panel);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;min-width:0;transition:border-color .15s}
+.card:hover{border-color:#34382f}
+.card.cur{border-color:color-mix(in srgb,var(--olive) 70%,transparent)}
+.card.off{opacity:.5}
+.card .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:12px;flex:1}
+.c-head h2{font-size:18px;font-weight:600;color:var(--white);letter-spacing:-.01em}
+.c-head .meta{color:var(--dim);font-size:13px;overflow-wrap:anywhere}
+.price{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.price .v{font-family:var(--fd);font-size:28px;font-weight:700;color:var(--white);line-height:1;letter-spacing:-.01em}
+.price .v small{font-size:13px;color:var(--dim);font-weight:500;margin-right:3px}
+.price .old{color:var(--dim);text-decoration:line-through;font-size:13px}
+.facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;background:var(--panel2);border-radius:12px;padding:10px 12px}
+.facts div{min-width:0}
+.facts b{display:block;color:var(--white);font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.facts span{font-size:11.5px;color:var(--dim)}
+@media (max-width:380px){.facts{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:8px}}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--panel2);color:var(--txt)}
+.chip.ok{color:var(--ok);background:var(--ok-bg)}
+.chip.red{color:var(--red-ink);background:var(--red-bg)}
+.chip.ol{color:var(--olive);background:var(--olive-bg)}
+.fipe{display:flex;flex-direction:column;gap:5px}
+.fipe .bar{height:5px;background:var(--panel2);border-radius:5px;position:relative}
+.fipe .bar i{position:absolute;inset:0 auto 0 0;border-radius:5px;background:var(--dim)}
+.fipe .bar i.ok{background:var(--ok)} .fipe .bar i.warn{background:var(--warn)}
+.fipe .bar u{position:absolute;top:-3px;bottom:-3px;width:2px;border-radius:2px;background:var(--txt);left:80%}
+.fipe small{color:var(--dim);font-size:12px}
+.alert{background:var(--warn-bg);color:var(--warn);border-radius:12px;padding:9px 12px;font-size:13px}
+.alert.bad{background:var(--red-bg);color:var(--red-ink)}
+.foot{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:auto}
+.seen{color:var(--dim);font-size:12px}
+.empty{grid-column:1/-1;border:1px dashed var(--line);border-radius:var(--r);padding:28px;color:var(--dim);text-align:center}
+.empty b{display:block;color:var(--white);font-size:15px;margin-bottom:4px}
+
+/* como funciona */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:6px}
+.step b{color:var(--white);font-size:14.5px}
+.step small{color:var(--dim);font-size:13px;line-height:1.5}
+
+/* barra de abas */
+#tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(0,0,0,.86);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+#tabbar .in{max-width:620px;margin-inline:auto;display:flex;height:var(--tab);padding:6px 8px;gap:4px}
+#tabbar button{flex:1;background:none;border:0;border-radius:14px;color:var(--dim);font-size:11.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;transition:background .15s,color .15s}
+#tabbar button i{font-style:normal;font-size:16px;line-height:1}
+#tabbar button em{font-style:normal;font-weight:500;opacity:.7;margin-left:3px}
+#tabbar button[aria-selected="true"]{color:var(--olive);background:var(--olive-bg)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div id="top"><div class="in">
+  <div class="brand"><span class="logo" aria-hidden="true"></span><b>Caça 40K</b><span>Uberlândia e região</span></div>
+  <div id="sync"><i class="dot warn"></i>Conectando…</div>
+</div></div>
+
+<main>
+  <section id="hero" aria-label="Melhor opção agora">
+    <div class="ph"><div class="none">Carregando</div></div>
+    <div class="t"><span class="lbl">Melhor opção agora</span><div class="nm">Carregando os anúncios…</div></div>
+  </section>
+
+  <section class="filters" aria-label="Filtros">
+    <div class="sec-h"><h1 id="list-title">Melhores</h1><small id="list-count"></small></div>
+    <div class="frow" id="f-modelo" aria-label="Modelo"></div>
+    <div class="frow">
+      <span id="f-fonte" class="frow" aria-label="Site"></span>
+      <button class="b sm" id="f-part" aria-pressed="false">Só particular</button>
+      <button class="b sm" id="f-orc" aria-pressed="false">Cabe nos R$ 40 mil</button>
+      <select class="b sm" id="f-sort" aria-label="Ordem">
+        <option value="nota">Melhor nota</option>
+        <option value="preco">Menor preço</option>
+        <option value="km">Menor km</option>
+        <option value="ano">Mais novo</option>
+        <option value="visto">Mais recente</option>
+      </select>
+    </div>
+  </section>
+
+  <section class="cars" id="list" aria-live="polite">
+    <div class="empty"><b>Carregando</b>Os carros encontrados aparecem aqui.</div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <div class="sec-h"><h1>Como funciona</h1></div>
+    <div class="steps">
+      <div class="step"><b>O que entra</b><small>Sandero, Gol G6, Palio e Uno de 2012 a 2015 e Fiesta de 2011 a 2016 (antigo ou New Fiesta), 4 portas, até 150 mil km, num raio de ~120 km de Uberlândia.</small></div>
+      <div class="step"><b>Quando atualiza</b><small>O Claude lê OLX, Webmotors e Marketplace a cada 30 minutos, enquanto o app Claude estiver aberto no Mac. Ele só lê, nunca fala com vendedor.</small></div>
+      <div class="step"><b>O que sai</b><small>Leilão, sinistro, retomado de financiamento, chassi remarcado e carro modificado vão para Descartados, com o motivo. Fiesta PowerShift e Palio/Uno Dualogic entram com alerta.</small></div>
+      <div class="step"><b>A nota</b><small>De 0 a 100: pesa preço contra a FIPE, km, ano, particular ou loja, dono único e alertas. "Total" soma R$ 2.500 de transferência e revisão.</small></div>
+    </div>
+  </section>
+</main>
+
+<nav id="tabbar" aria-label="Listas"><div class="in" role="tablist" id="tabs"></div></nav>
+
+<script>
+const CUSTO = 2500, TETO = 40000;
+const MODELOS = ["Todos","Sandero","Gol G6","Palio","Uno","Fiesta"];
+const FONTES = {todas:"Todos os sites", olx:"OLX", webmotors:"Webmotors", fb:"Marketplace"};
+const TABS = {melhores:["◆","Melhores"], novos:["✦","Novos"], favoritos:["★","Favoritos"], descartados:["✕","Descartados"]};
+const st = {tab:"melhores", modelo:"Todos", fonte:"todas", part:false, orc:false, sort:"nota"};
+try{ Object.assign(st, JSON.parse(localStorage.getItem("cc40k")||"{}")); }catch(e){}
+if (!MODELOS.includes(st.modelo)) st.modelo = "Todos";
+const save = () => { try{ localStorage.setItem("cc40k", JSON.stringify(st)); }catch(e){} };
+
+let carros = [], marcas = {}, status = null, db = null, ready = false;
+const idx = {}; // id -> foto exibida
+const $ = id => document.getElementById(id);
+const brl = n => "R$ " + Math.round(n).toLocaleString("pt-BR");
+const nf = n => Math.round(n).toLocaleString("pt-BR");
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const H = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function nota(c){
+  let s = 50;
+  if (c.fipe) s += clamp((c.fipe - c.preco) / c.fipe * 120, -15, 15);
+  if (c.km != null) s += clamp((150000 - c.km) / 150000 * 25, -10, 25); else s -= 6;
+  s += ((c.ano || 2012) - 2012) * 3;
+  if (c.vendedor === "particular") s += 4;
+  const d = (c.destaques || []).join(" ").toLowerCase();
+  if (/(único|unico|1) dono/.test(d)) s += 5;
+  if (/ipva/.test(d)) s += 2;
+  if (/chave reserva/.test(d)) s += 2;
+  if (c.alerta) s -= 8;
+  if (c.preco + CUSTO > TETO) s -= 8;
+  return Math.round(clamp(s, 0, 100));
+}
+const since = iso => { const m = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (m < 1) return "agora"; if (m < 60) return `há ${m} min`; const h = Math.round(m/60);
+  if (h < 24) return `há ${h} h`; const d = Math.round(h/24); return `há ${d} ${d===1?"dia":"dias"}`; };
+const isNovo = c => c.vistoEm && Date.now() - new Date(c.vistoEm) < 864e5;
+const mk = id => marcas[id] || {};
+const ativo = c => c.ativo !== false;
+const bom = c => ativo(c) && !c.descartado && !mk(c.id).oculto;
+const tone = n => n >= 75 ? "good" : n >= 55 ? "mid" : "low";
+
+function lista(tab){
+  if (tab === "melhores") return carros.filter(bom);
+  if (tab === "novos") return carros.filter(c => bom(c) && isNovo(c));
+  if (tab === "favoritos") return carros.filter(c => ativo(c) && mk(c.id).fav);
+  return carros.filter(c => c.descartado || mk(c.id).oculto);
+}
+function viewList(){
+  let l = lista(st.tab);
+  if (st.modelo !== "Todos") l = l.filter(c => c.modelo === st.modelo);
+  if (st.fonte !== "todas") l = l.filter(c => c.fonte === st.fonte);
+  if (st.part) l = l.filter(c => c.vendedor === "particular");
+  if (st.orc) l = l.filter(c => c.preco + CUSTO <= TETO);
+  const k = {nota:(a,b)=>nota(b)-nota(a), preco:(a,b)=>a.preco-b.preco,
+    km:(a,b)=>(a.km??9e9)-(b.km??9e9), ano:(a,b)=>b.ano-a.ano||nota(b)-nota(a),
+    visto:(a,b)=>String(b.vistoEm).localeCompare(String(a.vistoEm))}[st.sort];
+  return l.sort(k);
+}
+
+/* ---------- fotos ---------- */
+const fotosDe = c => (Array.isArray(c.fotos) ? c.fotos : []).filter(u => typeof u === "string" && /^(\/|https:\/\/|fotos\/)/.test(u));
+function photoInner(c){
+  const list = fotosDe(c);
+  if (list.length){
+    const i = (idx[c.id] || 0) % list.length;
+    return `<img src="${H(list[i])}" alt="Foto ${i+1} de ${list.length} do ${H(c.modelo)} ${H(c.ano)}" loading="lazy">
+      ${list.length > 1 ? `<div class="nav"><button data-prev="${H(c.id)}" aria-label="Foto anterior"></button><button data-next="${H(c.id)}" aria-label="Próxima foto"></button></div>
+      <div class="dots">${list.map((_,j)=>`<i class="${j===i?'on':''}"></i>`).join("")}</div>` : ""}`;
+  }
+  return `<div class="none">Foto chega na próxima atualização</div>`;
+}
+function photoBox(c, extra){ return `<div class="ph" data-ph="${H(c.id)}">${photoInner(c)}${extra || ""}</div>`; }
+function refreshPhoto(id){
+  const c = carros.find(x => x.id === id); if (!c) return;
+  document.querySelectorAll(`[data-ph="${CSS.escape(id)}"]`).forEach(el => {
+    const keep = [...el.querySelectorAll(".tag,.score")].map(n => n.outerHTML).join("");
+    el.innerHTML = photoInner(c) + keep;
+  });
+}
+
+/* ---------- telas ---------- */
+function renderSync(){
+  const el = $("sync");
+  if (!ready){ el.innerHTML = `<i class="dot warn"></i>Conectando…`; return; }
+  if (!db){ el.innerHTML = `<i class="dot bad"></i>Abra pelo Claude para ver os dados salvos`; return; }
+  if (!status){ el.innerHTML = `<i class="dot warn"></i>Aguardando a primeira atualização`; return; }
+  const min = (Date.now() - new Date(status.atualizadoEm)) / 60000;
+  const cls = min < 45 ? "" : min < 180 ? "warn" : "bad";
+  const l = status.lidos || {};
+  el.innerHTML = `<i class="dot ${cls}"></i>Atualizado ${since(status.atualizadoEm)} · ${(l.olx||0)+(l.webmotors||0)+(l.fb||0)} anúncios lidos`;
+}
+
+function renderHero(){
+  const bons = carros.filter(bom);
+  const top = [...bons].sort((a,b)=>nota(b)-nota(a))[0];
+  if (!top){
+    $("hero").innerHTML = `<div class="ph"><div class="none">${ready ? "Sem carros ainda" : "Carregando"}</div></div>
+      <div class="t"><span class="lbl">Melhor opção agora</span><div class="nm">${ready ? "A busca automática roda a cada 30 minutos e preenche esta página." : "Carregando os anúncios…"}</div></div>`;
+    return;
+  }
+  const cabem = bons.filter(c => c.preco + CUSTO <= TETO).length;
+  const novos = bons.filter(isNovo).length;
+  const barato = [...bons].sort((a,b)=>a.preco-b.preco)[0];
+  const n = nota(top);
+  $("hero").innerHTML = photoBox(top, `<div class="score ${tone(n)}"><b>${n}</b><span>nota</span></div>`) + `
+    <div class="t">
+      <span class="lbl">Melhor opção agora</span>
+      <div><div class="nm">${H(top.modelo)} ${H(top.ano)}</div><div class="ver">${H(top.versao || "")} · ${top.km != null ? nf(top.km) + " km" : "km não informado"} · ${H(top.cidade)}</div></div>
+      <div class="big"><small>R$</small>${nf(top.preco)}</div>
+      <div class="frow">
+        <a class="b pri" href="${H(top.link)}" target="_blank" rel="noopener">Ver anúncio</a>
+        ${top.fipe ? `<span class="chip ${top.preco <= top.fipe ? "ok" : ""}">${top.preco <= top.fipe ? brl(top.fipe - top.preco) + " abaixo da FIPE" : brl(top.preco - top.fipe) + " acima da FIPE"}</span>` : ""}
+      </div>
+      <div class="readout">
+        <div><span class="lbl">Opções boas</span><b>${bons.length}</b></div>
+        <div><span class="lbl">Cabem nos R$ 40 mil</span><b class="ok">${cabem}</b></div>
+        <div><span class="lbl">Novas em 24 h</span><b>${novos}</b></div>
+        <div><span class="lbl">Menor preço</span><b>${barato ? brl(barato.preco) : "–"}</b></div>
+      </div>
+    </div>`;
+}
+
+function renderControls(){
+  $("tabs").innerHTML = Object.entries(TABS).map(([k,[ic,v]]) =>
+    `<button role="tab" data-tab="${k}" aria-selected="${st.tab===k}"><i>${ic}</i><span>${v}<em>${lista(k).length}</em></span></button>`).join("");
+  const n = viewList().length;
+  $("list-title").textContent = TABS[st.tab][1];
+  $("list-count").textContent = `${n} ${n===1?"anúncio":"anúncios"}`;
+  $("f-modelo").innerHTML = MODELOS.map(x => `<button class="b sm" data-modelo="${x}" aria-pressed="${st.modelo===x}">${x}</button>`).join("");
+  $("f-fonte").innerHTML = Object.entries(FONTES).map(([k,v]) => `<button class="b sm" data-fonte="${k}" aria-pressed="${st.fonte===k}">${v}</button>`).join("");
+  $("f-part").setAttribute("aria-pressed", st.part); $("f-orc").setAttribute("aria-pressed", st.orc);
+  $("f-sort").value = st.sort;
+}
+
+function card(c, i){
+  const n = nota(c), m = mk(c.id), total = c.preco + CUSTO;
+  const chips = [];
+  chips.push(total <= TETO ? `<span class="chip ok">Total ${brl(total)}</span>` : `<span class="chip red">Negociar ${brl(total - TETO)}</span>`);
+  if (c.precoAnterior && c.precoAnterior > c.preco) chips.push(`<span class="chip ol">Baixou ${brl(c.precoAnterior - c.preco)}</span>`);
+  (c.destaques || []).forEach(d => chips.push(`<span class="chip">${H(d)}</span>`));
+  let fipe = "";
+  if (c.fipe){
+    const r = c.preco / c.fipe, d = c.preco - c.fipe;
+    fipe = `<div class="fipe"><div class="bar"><i class="${d<=0?'ok':r<=1.05?'':'warn'}" style="width:${clamp(r*80,3,100)}%"></i><u title="FIPE"></u></div>
+      <small>${d <= 0 ? `${brl(-d)} abaixo da FIPE` : `${brl(d)} acima da FIPE`} · FIPE ${brl(c.fipe)}</small></div>`;
+  }
+  const cur = i === 0 && st.tab === "melhores" && st.sort === "nota";
+  const tags = `<div class="tag"><span class="badge">${FONTES[c.fonte] || H(c.fonte)}</span>${isNovo(c) && !c.descartado ? '<span class="badge new">Novo</span>' : ''}</div>
+    <div class="score ${tone(n)}" title="Nota de 0 a 100"><b>${n}</b><span>nota</span></div>`;
+  return `<article class="card${cur?' cur':''}${c.descartado||m.oculto?' off':''}">
+    ${photoBox(c, tags)}
+    <div class="body">
+      <div class="c-head"><h2>${H(c.modelo)} ${H(c.ano)}</h2><div class="meta">${H(c.versao || "")}</div></div>
+      <div class="price"><span class="v"><small>R$</small>${nf(c.preco)}</span>${c.precoAnterior && c.precoAnterior > c.preco ? `<span class="old">${brl(c.precoAnterior)}</span>` : ""}</div>
+      <div class="facts">
+        <div><b>${c.km != null ? nf(c.km) : "?"}</b><span>km</span></div>
+        <div><b>${H(c.ano)}</b><span>ano</span></div>
+        <div><b title="${H(c.cidade)}">${H(c.cidade)}</b><span>cidade</span></div>
+        <div><b>${c.vendedor === "particular" ? "Particular" : "Loja"}</b><span>vendedor</span></div>
+      </div>
+      ${fipe}
+      <div class="chips">${chips.join("")}</div>
+      ${c.alerta ? `<div class="alert">${H(c.alerta)}</div>` : ""}
+      ${c.descartado ? `<div class="alert bad">Descartado: ${H(c.motivo || "procedência")}</div>` : ""}
+      <div class="foot">
+        <a class="b pri sm" href="${H(c.link)}" target="_blank" rel="noopener">Ver anúncio</a>
+        ${db ? `<button class="b sm" data-fav="${H(c.id)}" aria-pressed="${!!m.fav}">${m.fav ? "★ Favorito" : "☆ Favoritar"}</button>
+        <button class="b sm" data-hide="${H(c.id)}" aria-pressed="${!!m.oculto}">${m.oculto ? "Mostrar" : "Ocultar"}</button>` : ""}
+      </div>
+      <div class="seen">Visto pela 1ª vez ${c.vistoEm ? since(c.vistoEm) : "–"} · conferido ${c.atualizadoEm ? since(c.atualizadoEm) : "–"}</div>
+    </div>
+  </article>`;
+}
+
+function render(){
+  renderSync(); renderHero(); renderControls();
+  const l = viewList();
+  $("list").innerHTML = l.length ? l.map(card).join("") : !ready
+    ? `<div class="empty"><b>Carregando</b>Os carros encontrados aparecem aqui.</div>`
+    : carros.length
+    ? `<div class="empty"><b>Nenhum carro neste filtro</b>Troque o modelo ou o site, ou desligue um filtro.</div>`
+    : `<div class="empty"><b>Ainda não há carros salvos</b>A busca automática roda a cada 30 minutos e preenche esta lista.</div>`;
+}
+
+document.addEventListener("click", async e => {
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.dataset.prev || t.dataset.next){
+    const id = t.dataset.prev || t.dataset.next, c = carros.find(x => x.id === id), n = c ? fotosDe(c).length : 0; if (!n) return;
+    idx[id] = ((idx[id] || 0) + (t.dataset.next ? 1 : -1) + n) % n; refreshPhoto(id); return;
+  }
+  if (t.dataset.tab){ st.tab = t.dataset.tab; window.scrollTo({top:0}); }
+  else if (t.dataset.modelo){ st.modelo = t.dataset.modelo; }
+  else if (t.dataset.fonte){ st.fonte = t.dataset.fonte; }
+  else if (t.id === "f-part"){ st.part = !st.part; }
+  else if (t.id === "f-orc"){ st.orc = !st.orc; }
+  else if (t.dataset.fav || t.dataset.hide){
+    const id = t.dataset.fav || t.dataset.hide, cur = {...mk(id)};
+    if (t.dataset.fav) cur.fav = !cur.fav; else cur.oculto = !cur.oculto;
+    marcas[id] = cur; render();
+    try{ await db.doc("marcas/" + id).set(cur); }catch(err){ console.warn(err); }
+    return;
+  } else return;
+  save(); render();
+});
+$("f-sort").addEventListener("change", e => { st.sort = e.target.value; save(); render(); });
+setInterval(renderSync, 60000);
+render();
+
+(async () => {
+  db = await window.claude?.use?.("db") ?? null;
+  ready = true;
+  if (!db){ render(); return; }
+  db.collection("carros").onSnapshot(s => {
+    carros = s.docs.map(d => { const c = {id:d.id, ...d.data()}; if (c.modelo === "New Fiesta") c.modelo = "Fiesta"; return c; });
+    render();
+  }, e => console.warn(e));
+  db.collection("marcas").onSnapshot(s => { marcas = {}; s.docs.forEach(d => marcas[d.id] = d.data()); render(); }, e => console.warn(e));
+  db.doc("status/geral").onSnapshot(s => { status = s.exists ? s.data() : null; render(); }, e => console.warn(e));
+  render();
+})();
+</script>
+
+</body></html>
