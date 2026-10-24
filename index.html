@@ -210,7 +210,7 @@ select.b{appearance:none;-webkit-appearance:none;padding-right:30px;background-i
   <section class="intro" aria-label="Sobre o app">
     <span class="eyebrow">Uberlândia e região · até 120 km</span>
     <h1 class="title">Seu próximo carro até <em>R$&nbsp;40 mil</em></h1>
-    <p class="sub">O Claude vasculha <b>OLX, Webmotors e Marketplace</b> a cada 30 minutos e separa os melhores <b>Sandero, Gol G6, Palio, Uno e Fiesta</b>. Cada carro ganha uma nota, e leilão, sinistro e retomado ficam de fora.</p>
+    <p class="sub">O Claude vasculha <b>OLX, Webmotors e Marketplace</b> a cada 10 minutos e separa os melhores <b>Sandero, Gol G6, Palio, Uno e Fiesta</b>. Cada carro ganha uma nota, e leilão, sinistro e retomado ficam de fora.</p>
     <div class="kpis" id="kpis"></div>
   </section>
 
@@ -252,7 +252,7 @@ select.b{appearance:none;-webkit-appearance:none;padding-right:30px;background-i
     <div class="sec-h"><h2>Como funciona</h2></div>
     <div class="steps">
       <div class="step"><b>O que entra</b><small>Sandero, Gol G6, Palio e Uno de 2012 a 2015 e Fiesta de 2011 a 2016 (antigo ou New Fiesta), 4 portas, até 150 mil km, num raio de ~120 km de Uberlândia.</small></div>
-      <div class="step"><b>Quando atualiza</b><small>O Claude lê OLX, Webmotors e Marketplace a cada 30 minutos, enquanto o app Claude estiver aberto no Mac. Ele só lê, nunca fala com vendedor.</small></div>
+      <div class="step"><b>Quando atualiza</b><small>O Claude confere os anúncios novos a cada 10 minutos e faz a busca completa de hora em hora, enquanto o app Claude estiver aberto no Mac. Ele só lê, nunca fala com vendedor.</small></div>
       <div class="step"><b>O que sai</b><small>Leilão, sinistro, retomado de financiamento, chassi remarcado e carro modificado vão para Descartados, com o motivo. Fiesta PowerShift e Palio/Uno Dualogic entram com alerta.</small></div>
       <div class="step"><b>A nota</b><small>De 0 a 100: pesa preço contra a FIPE, km, ano, particular ou loja, dono único e alertas. "Total" soma R$ 2.500 de transferência e revisão.</small></div>
     </div>
@@ -368,7 +368,7 @@ function renderHero(){
     <div class="kpi"><b>${barato ? brl(barato.preco) : "–"}</b><span>menor preço</span></div>`;
   if (!top){
     $("hero").innerHTML = `<div class="ph vazio"><div class="none"><span>${ready ? "Sem carros ainda" : "Carregando"}</span></div></div>
-      <div class="t"><div class="nm">${ready ? "A busca automática roda a cada 30 minutos e preenche esta página." : "Carregando os anúncios…"}</div></div>`;
+      <div class="t"><div class="nm">${ready ? "A busca automática roda a cada 10 minutos e preenche esta página." : "Carregando os anúncios…"}</div></div>`;
     return;
   }
   const n = nota(top);
@@ -446,7 +446,7 @@ function render(){
     ? `<div class="empty"><b>Carregando</b>Os carros encontrados aparecem aqui.</div>`
     : carros.length
     ? `<div class="empty"><b>Nenhum carro neste filtro</b>Troque o modelo ou o site, ou desligue um filtro.</div>`
-    : `<div class="empty"><b>Ainda não há carros salvos</b>A busca automática roda a cada 30 minutos e preenche esta lista.</div>`;
+    : `<div class="empty"><b>Ainda não há carros salvos</b>A busca automática roda a cada 10 minutos e preenche esta lista.</div>`;
 }
 
 document.addEventListener("click", async e => {
