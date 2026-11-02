@@ -40,10 +40,10 @@
 <style>
 /* Layout: paleta do Boonie (preto, painéis grafite, oliva) num tom mais suave: cantos arredondados, texto em caixa normal, sem relógio nem bússola. Destaque com foto grande no topo, filtros em pílulas, cartões com foto em cima e dados embaixo, barra de abas fixa no rodapé. Tema único escuro, de propósito. */
 :root{
-  --bg:#000; --panel:#0e0f0d; --panel2:#151713; --line:#252822;
-  --olive:#a9bd6a; --olive-bg:#1a2110; --ok:#8fd14f; --ok-bg:#132011;
+  --bg:#000; --panel:#0d0f13; --panel2:#14171d; --line:#232833;
+  --olive:#5aa9ff; --olive-bg:#0f1e35; --ok:#4cc3ff; --ok-bg:#0c2233;
   --red:#e0442f; --red-ink:#ff8a78; --red-bg:#2a0f0a; --warn:#e6ad4c; --warn-bg:#2a1d08;
-  --cy:#6fd3ff; --txt:#eef0ea; --dim:#8b9283; --white:#ffffff;
+  --cy:#9fd8ff; --txt:#eef2f8; --dim:#8a93a5; --white:#ffffff;
   --f:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","Segoe UI",Roboto,Arial,sans-serif;
   --fd:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue","Segoe UI",Roboto,Arial,sans-serif;
   --tab:60px; --r:16px;
@@ -95,7 +95,7 @@ main{max-width:1080px;margin-inline:auto;padding-block:18px calc(var(--tab) + 32
 .scroller .b{flex:none}
 .frow2{display:flex;gap:8px;align-items:center;justify-content:space-between}
 .frow2 select{min-width:0}
-.fbtn .n{background:var(--olive);color:#10140a;border-radius:999px;font-size:11px;padding:0 6px;line-height:17px}
+.fbtn .n{background:var(--olive);color:#06111f;border-radius:999px;font-size:11px;padding:0 6px;line-height:17px}
 .fbtn .n:empty{display:none}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px}
 .seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;background:var(--panel2);border-radius:12px;padding:3px}
@@ -139,8 +139,8 @@ main{max-width:1080px;margin-inline:auto;padding-block:18px calc(var(--tab) + 32
 
 /* botões e filtros */
 .b{padding:9px 16px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:999px;font-size:13.5px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:background .15s,border-color .15s,color .15s}
-.b:hover{border-color:#3a3e35}
-.b.pri{background:var(--olive);border-color:var(--olive);color:#10140a}
+.b:hover{border-color:#3a4252}
+.b.pri{background:var(--olive);border-color:var(--olive);color:#06111f}
 .b.pri:hover{filter:brightness(1.06)}
 .b[aria-pressed="true"]:not(.pri){background:var(--olive-bg);border-color:color-mix(in srgb,var(--olive) 55%,transparent);color:var(--olive)}
 .b.sm{padding:7px 13px;font-size:13px}
@@ -151,7 +151,7 @@ select.b{appearance:none;-webkit-appearance:none;padding-right:30px;background-i
 /* cartões */
 .cars{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
 .card{border:1px solid var(--line);background:var(--panel);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;min-width:0;transition:border-color .15s}
-.card:hover{border-color:#34382f}
+.card:hover{border-color:#333b4a}
 .card.cur{border-color:color-mix(in srgb,var(--olive) 70%,transparent)}
 .card.off{opacity:.5}
 .card .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:12px;flex:1}
